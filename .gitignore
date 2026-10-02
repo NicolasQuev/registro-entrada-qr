@@ -1,0 +1,21 @@
+# Build y artefactos locales
+.build/
+.gradle/
+build/
+app/build/
+local.properties
+*.hprof
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+captures/
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# Entorno de generación de documentos
+.venv/
+__pycache__/
+*.pyc
