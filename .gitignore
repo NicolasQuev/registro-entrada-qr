@@ -1,6 +1,7 @@
 # Build y artefactos locales
 .build/
 .gradle/
+.kotlin/
 build/
 app/build/
 local.properties

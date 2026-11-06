@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      Tema de la Activity. La apariencia real la define Jetpack Compose
+      (ui/theme/Theme.kt). Aquí solo se declara un tema sin barra de acción
+      para evitar destellos antes de que Compose tome el control.
+    -->
+    <style name="Theme.RegistroEntrada" parent="android:Theme.Material.Light.NoActionBar" />
+</resources>
