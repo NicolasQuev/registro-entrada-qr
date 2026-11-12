@@ -99,6 +99,7 @@ class EventoRepositoryImpl @Inject constructor(
         var sincronizados = 0
 
         for (doc in documentos) {
+            if (doc.documentId.isBlank()) continue
             val eventoRemoto = doc.aDominio()
             val existente = doc.documentId.let { eventoDao.buscarPorRemoteId(it) }
 

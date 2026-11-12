@@ -2,6 +2,8 @@ package pe.edu.upn.registroentrada.scanner
 
 import android.graphics.Bitmap
 import android.graphics.Color
+import androidx.core.graphics.createBitmap
+import androidx.core.graphics.set
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
 import com.google.zxing.qrcode.QRCodeWriter
@@ -17,10 +19,10 @@ object GeneradorQr {
             EncodeHintType.CHARACTER_SET to "UTF-8"
         )
         val matriz = QRCodeWriter().encode(texto, BarcodeFormat.QR_CODE, tamanoPx, tamanoPx, pistas)
-        val bitmap = Bitmap.createBitmap(matriz.width, matriz.height, Bitmap.Config.ARGB_8888)
+        val bitmap = createBitmap(matriz.width, matriz.height)
         for (x in 0 until matriz.width) {
             for (y in 0 until matriz.height) {
-                bitmap.setPixel(x, y, if (matriz[x, y]) Color.BLACK else Color.WHITE)
+                bitmap[x, y] = if (matriz[x, y]) Color.BLACK else Color.WHITE
             }
         }
         return bitmap

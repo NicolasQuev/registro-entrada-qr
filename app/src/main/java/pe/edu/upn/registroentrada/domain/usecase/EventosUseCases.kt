@@ -5,6 +5,7 @@ import javax.inject.Inject
 import kotlinx.coroutines.flow.first
 import pe.edu.upn.registroentrada.core.Reloj
 import pe.edu.upn.registroentrada.core.Resultado
+import pe.edu.upn.registroentrada.core.ValidadorCoordenadas
 import pe.edu.upn.registroentrada.domain.model.AjustesUsuario
 import pe.edu.upn.registroentrada.domain.model.EstadoEvento
 import pe.edu.upn.registroentrada.domain.model.Evento
@@ -32,7 +33,7 @@ class CrearEventoUseCase @Inject constructor(
         latitud: Double? = null,
         longitud: Double? = null
     ): Resultado<Long> {
-        validar(nombre, lugar, fechaInicio, fechaFin, aforoMaximo)?.let { return it }
+        validar(nombre, lugar, fechaInicio, fechaFin, aforoMaximo, latitud, longitud)?.let { return it }
         val evento = Evento(
             nombre = nombre.trim(),
             descripcion = descripcion?.trim()?.ifBlank { null },
@@ -53,14 +54,16 @@ class CrearEventoUseCase @Inject constructor(
         lugar: String,
         fechaInicio: Instant,
         fechaFin: Instant,
-        aforoMaximo: Int
+        aforoMaximo: Int,
+        latitud: Double?,
+        longitud: Double?
     ): Resultado.Error? = when {
         nombre.isBlank() -> Resultado.Error("El nombre del evento es obligatorio")
         lugar.isBlank() -> Resultado.Error("El lugar del evento es obligatorio")
         aforoMaximo <= 0 -> Resultado.Error("El aforo debe ser un número mayor a 0")
         fechaFin.isBefore(fechaInicio) ->
             Resultado.Error("La fecha de fin no puede ser anterior a la fecha de inicio")
-        else -> null
+        else -> ValidadorCoordenadas.validar(latitud, longitud)?.let { Resultado.Error(it) }
     }
 }
 

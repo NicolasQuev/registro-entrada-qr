@@ -1,8 +1,7 @@
 # Registro de Entrada
 
-Aplicación móvil Android para el **registro de ingreso a un local de eventos mediante códigos QR**.
-Funciona 100 % sin internet (offline-first): base de datos local con Room (SQLite) y preferencias
-con DataStore. Es el proyecto de prácticas de campo del curso.
+Aplicación móvil Android nativa (Kotlin + Jetpack Compose) para el **registro y control de ingreso a eventos mediante códigos QR**.
+Adopta una arquitectura híbrida *offline-first*: la validación en puerta, emisión de entradas firmadas y auditoría operan sin depender de internet sobre SQLite (**Room v3**, con migraciones `1→2` y `2→3`) y **DataStore**, complementadas con sincronización REST de eventos hacia **Cloud Firestore** (`Retrofit` + `OkHttp`) y geolocalización GPS/mapa con **Google Maps Compose**. Es el proyecto final (entrega T3) de prácticas de campo del curso.
 
 ## Estado por práctica de campo
 
@@ -13,40 +12,42 @@ con DataStore. Es el proyecto de prácticas de campo del curso.
 | **PC 07** — Sprint de persistencia local con DataStore, SQLite/Room y patrón Repository; evidencia de MVVM | Terminada | `data/` (Room + DataStore + repositorios), `domain/` (casos de uso y contratos), `app/schemas/…/1.json` y pruebas en verde |
 | **PC 08/09** — Sprint de integración con API REST (definición de endpoints, contrato JSON y consumo con Retrofit) | Terminada | `data/remote/api/EventosApiService.kt`, `data/remote/dto/`, `di/NetworkModule.kt` y pruebas con Retrofit en verde |
 | **PC 10/11** — Sprint de operaciones CRUD con API REST, manejo de errores, estados de carga y conectividad | Terminada | Operaciones GET, POST, PATCH, DELETE en `EventoRepositoryImpl`, `MonitorConectividad` y `EstadoCarga` con banner offline en `EventosScreen` |
-| **PC 12** — Sprint de geolocalización con Google Maps API, permisos, privacidad y validación funcional | Terminada | Pantalla interactiva `MapaEventoScreen` con Google Maps Compose, selector de coordenadas en creación y manejo de permisos `ACCESS_FINE_LOCATION` |
+| **PC 12** — Integración final (persistencia v3, REST Firestore, geolocalización GPS/Maps), pruebas funcionales, Lint y R8 | Terminada | `ProveedorUbicacionGps`, `ValidadorCoordenadas`, `MapaEventoScreen`, `FlujoFuncionalComposeTest`, Android Lint (`0` errores), desugaring y APK release con R8 (`23,4 MiB`) |
+| **PC 13 / T3** — Informe final, producto funcional y paquete de evidencias | Terminada | `entrega/Informe_Proyecto Final_DESAP.docx`, `.pdf`, APKs compilados y carpeta `entrega/evidencias-T3/` |
 
 ## Código de la aplicación
 
 El proyecto Android vive en la raíz del repositorio (Gradle Kotlin DSL con catálogo de
-versiones en `gradle/libs.versions.toml`). Implementa las **semanas 5 (SQLite/Room y
-DataStore)** y **7 (arquitectura MVVM y pruebas básicas)** del curso.
+versiones en `gradle/libs.versions.toml`, `minSdk = 24`, `targetSdk = 36`, versión `1.0.0`).
 
-- `app/src/main/java/pe/edu/upn/registroentrada/core/` — utilidades transversales sin Android
-  (`Resultado`, `Reloj`, `GeneradorId`, `FirmadorQr`, `Hasher`, `ValidadorDocumento`).
+- `app/src/main/java/pe/edu/upn/registroentrada/core/` — utilidades transversales
+  (`Resultado`, `Reloj`, `GeneradorId`, `FirmadorQr`, `Hasher`, `ValidadorDocumento`,
+  `ValidadorCoordenadas`, `MonitorConectividad`, `EstadoCarga`, `ProveedorUbicacionGps`).
 - `.../domain/` — modelos, **contratos de repositorio** y casos de uso con las reglas RN-01 a RN-15.
-- `.../data/local/` — las **seis tablas de Room** (`eventos`, `tipos_entrada`, `asistentes`,
-  `entradas`, `registros_acceso`, `operadores`) con sus DAO, índices, claves foráneas y siembra inicial.
+- `.../data/local/` — las **seis tablas de Room (esquema v3)** (`eventos`, `tipos_entrada`, `asistentes`,
+  `entradas`, `registros_acceso`, `operadores`), migraciones `Migracion1a2` y `Migracion2a3`, esquemas en `app/schemas/` y siembra inicial.
+- `.../data/remote/` — cliente Retrofit contra **Cloud Firestore REST API v1** (`EventosApiService`, DTOs `EventoDto`).
 - `.../data/preferences/` — **DataStore** para sesión, evento activo, puerta, tema, sonido y vibración.
-- `.../data/repository/` — implementaciones del patrón **Repository** (incluye la transacción atómica
-  de acceso con `Room.withTransaction`).
-- `.../scanner/` — generación del QR con ZXing (el escaneo con cámara CameraX + ML Kit entra en el Sprint 3).
-- `.../ui/` — tema Material 3, componentes reutilizables, navegación y pantallas:
-  login, inicio (aforo en vivo), eventos, asistentes (opcional), emisión de entradas genéricas por cantidad
-  con QR, detalle de la entrada con **Compartir** y **Guardar imagen (PNG)**, historial y ajustes.
-- `app/src/test/` — pruebas unitarias de dominio (validadores, firma HMAC, casos de uso) con dobles en memoria.
-- `app/src/androidTest/` — pruebas instrumentadas de los DAO de Room.
+- `.../data/repository/` — implementaciones **Repository** híbridas (Room transaccional + sincronización REST).
+- `.../scanner/` — generación de QR con ZXing y escaneo en vivo con CameraX 1.4.0 + ML Kit 17.3.0.
+- `.../ui/` — tema Material 3, navegación y pantallas: login, inicio, eventos (con nube), detalle de evento (`Cloud ID`, `Ver en Mapa`), formulario con GPS/Google Maps, escáner, entradas, historial y ajustes.
+- `app/src/test/` — **48 pruebas unitarias (13 suites)** en JVM (dominio, firma, validadores, API REST, repositorios y ViewModels).
+- `app/src/androidTest/` — **7 pruebas instrumentadas** en emulador (`AppDatabaseTest` y `FlujoFuncionalComposeTest`).
 
 ### Compilar, probar y verificar
 
 ```bash
-# Compilar el APK de depuración (queda en app/build/outputs/apk/debug/)
-./gradlew :app:assembleDebug
-
-# Pruebas unitarias de dominio y datos (JVM)
+# Pruebas unitarias en JVM (48 pruebas / 13 suites)
 ./gradlew :app:testDebugUnitTest
 
-# Pruebas instrumentadas de los DAO (requiere emulador o dispositivo)
+# Pruebas instrumentadas de Room y Compose UI en emulador/dispositivo (7 pruebas / 2 clases)
 ./gradlew :app:connectedDebugAndroidTest
+
+# Análisis estático (0 errores, 41 advertencias)
+./gradlew :app:lintDebug
+
+# APKs debug (42,8 MiB) y release optimizado con R8 + shrinkResources (23,4 MiB)
+./gradlew :app:assembleDebug :app:assembleRelease
 ```
 
 El operador sembrado en el primer arranque es **admin** con PIN **1234**.
@@ -64,10 +65,14 @@ acceso— construida sobre Material 3:
   sello, `BarraAforo` segmentada y el detalle de la entrada con perforación de ticket.
 - Todo el sistema vive en `ui/theme/` y `ui/components/`; ninguna pantalla define colores ni tipografías literales.
 
-## Evidencias
+## Evidencias y paquete T3 (`entrega/`)
 
-En `docs/evidencias/` hay capturas del emulador: login, inicio, eventos, escáner, formulario de asistente,
-emisión de entradas con QR, resultado de puerta, historial, compartir el QR y ajustes (tema claro y oscuro).
+- `docs/evidencias/` — capturas del emulador desde el flujo núcleo hasta las capturas PC12 (`pc12_eventos_rest_sync.png`, `pc12_evento_detalle_cloud.png`, `pc12_evento_form_gps.png`, `pc12_mapa_google_gps.png`).
+- `entrega/Informe_Proyecto Final_DESAP.docx` y `.pdf` — informe final PC13 completo.
+- `entrega/RegistroEntrada-v1.0.0-debug.apk` y `RegistroEntrada-v1.0.0-release-unsigned.apk` — binarios listos para revisión e instalación.
+- `entrega/evidencias-T3/` — evidencias clave organizadas junto con el resumen de pruebas.
+
+> Nota sobre Google Maps: la vista de mapa, permisos en tiempo de ejecución y coordenadas GPS funcionan en el emulador; la descarga de teselas de mapa requiere habilitar *Maps SDK for Android* y la huella SHA-1 del certificado en Google Cloud Console para la API key declarada.
 
 ## Documentación
 
@@ -104,4 +109,6 @@ para medir la paginación), aplica estilos, tablas y pie de página, y deja el P
 
 Los asistentes (registrar personas) quedan como módulo **opcional**; la emisión ya no los requiere.
 
-Fuera de alcance en esta versión: venta de entradas en línea, backend, lector QR físico y múltiples locales.
+- Sincronización REST de metadatos de eventos con Cloud Firestore (`cursos-upn-nicolas`) y geolocalización GPS/Google Maps Compose.
+
+Fuera de alcance en esta versión: venta de entradas en línea, sincronización multi-puerta de asistencias en vivo, lector QR físico por OTG y publicación en Google Play Store.

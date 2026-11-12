@@ -206,7 +206,13 @@ private fun TarjetaEvento(evento: Evento, onClick: () -> Unit) {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(evento.nombre, style = MaterialTheme.typography.titleLarge)
+            Text(
+                text = evento.nombre,
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(end = 8.dp)
+            )
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (evento.remoteId != null) {
                     Icon(

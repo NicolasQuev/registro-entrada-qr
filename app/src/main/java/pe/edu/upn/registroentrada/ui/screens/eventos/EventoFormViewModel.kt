@@ -13,6 +13,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import pe.edu.upn.registroentrada.core.Resultado
+import pe.edu.upn.registroentrada.core.ValidadorCoordenadas
+import pe.edu.upn.registroentrada.core.location.ProveedorUbicacion
 import pe.edu.upn.registroentrada.domain.usecase.CrearEventoUseCase
 import pe.edu.upn.registroentrada.ui.util.Formato
 
@@ -32,12 +34,14 @@ data class EventoFormUiState(
     val errorAforo: String? = null,
     val errorCoordenadas: String? = null,
     val mensaje: String? = null,
+    val obteniendoUbicacion: Boolean = false,
     val guardando: Boolean = false
 )
 
 @HiltViewModel
 class EventoFormViewModel @Inject constructor(
-    private val crearEvento: CrearEventoUseCase
+    private val crearEvento: CrearEventoUseCase,
+    private val proveedorUbicacion: ProveedorUbicacion
 ) : ViewModel() {
 
     private val _estado = MutableStateFlow(EventoFormUiState())
@@ -59,6 +63,33 @@ class EventoFormViewModel @Inject constructor(
     fun cambiarFechaFin(v: String) = _estado.update { it.copy(fechaFin = v, errorFechaFin = null) }
     fun cambiarAforo(v: String) = _estado.update { it.copy(aforo = v.filter { c -> c.isDigit() }, errorAforo = null) }
 
+    fun obtenerUbicacionGps() {
+        if (_estado.value.obteniendoUbicacion) return
+        _estado.update { it.copy(obteniendoUbicacion = true, errorCoordenadas = null) }
+        viewModelScope.launch {
+            proveedorUbicacion.obtenerUbicacionActual().fold(
+                onSuccess = { coords ->
+                    _estado.update {
+                        it.copy(
+                            obteniendoUbicacion = false,
+                            latitud = String.format(java.util.Locale.US, "%.6f", coords.latitud),
+                            longitud = String.format(java.util.Locale.US, "%.6f", coords.longitud),
+                            errorCoordenadas = null
+                        )
+                    }
+                },
+                onFailure = { err ->
+                    _estado.update {
+                        it.copy(
+                            obteniendoUbicacion = false,
+                            errorCoordenadas = err.message ?: "No se pudo obtener la ubicación GPS"
+                        )
+                    }
+                }
+            )
+        }
+    }
+
     fun guardar(onCreado: (Long) -> Unit) {
         val actual = _estado.value
         val inicio = parsearFecha(actual.fechaInicio)
@@ -66,6 +97,10 @@ class EventoFormViewModel @Inject constructor(
         val aforo = actual.aforo.toIntOrNull()
         val lat = actual.latitud.toDoubleOrNull()
         val lng = actual.longitud.toDoubleOrNull()
+        val errorCoord = when {
+            lat == null || lng == null -> "Coordenadas geográficas inválidas"
+            else -> ValidadorCoordenadas.validar(lat, lng)
+        }
 
         _estado.update {
             it.copy(
@@ -74,7 +109,7 @@ class EventoFormViewModel @Inject constructor(
                 errorFechaInicio = if (inicio == null) "Usa el formato dd/MM/yyyy HH:mm" else null,
                 errorFechaFin = if (fin == null) "Usa el formato dd/MM/yyyy HH:mm" else null,
                 errorAforo = if (aforo == null || aforo <= 0) "El aforo debe ser un número mayor a 0" else null,
-                errorCoordenadas = if (lat == null || lng == null) "Coordenadas geográficas inválidas" else null
+                errorCoordenadas = errorCoord
             )
         }
         val hayError = _estado.value.let {

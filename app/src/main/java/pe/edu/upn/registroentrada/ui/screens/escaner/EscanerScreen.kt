@@ -186,10 +186,7 @@ fun EscanerScreen(viewModel: EscanerViewModel = hiltViewModel()) {
                                 .clip(RoundedCornerShape(16.dp))
                         ) {
                             CamaraEscanerQr(
-                                onCodigoDetectado = { codigoLeido ->
-                                    viewModel.cambiarCodigo(codigoLeido)
-                                    viewModel.validar()
-                                },
+                                onCodigoDetectado = viewModel::procesarCodigoEscaneado,
                                 modifier = Modifier.fillMaxSize()
                             )
                         }

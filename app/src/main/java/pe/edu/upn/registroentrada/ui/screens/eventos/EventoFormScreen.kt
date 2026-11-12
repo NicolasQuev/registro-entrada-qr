@@ -1,5 +1,6 @@
 package pe.edu.upn.registroentrada.ui.screens.eventos
 
+import android.Manifest
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,23 +10,36 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MyLocation
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import pe.edu.upn.registroentrada.ui.components.BarraSuperior
 import pe.edu.upn.registroentrada.ui.components.BotonPrimario
 import pe.edu.upn.registroentrada.ui.components.CampoTextoValidado
 import pe.edu.upn.registroentrada.ui.components.TituloSenal
 
+@OptIn(ExperimentalPermissionsApi::class)
 @Composable
 fun EventoFormScreen(
     onVolver: () -> Unit,
@@ -33,6 +47,23 @@ fun EventoFormScreen(
     viewModel: EventoFormViewModel = hiltViewModel()
 ) {
     val estado by viewModel.estado.collectAsStateWithLifecycle()
+    var solicitarUbicacionPendiente by remember { mutableStateOf(false) }
+    val permUbicacion = rememberMultiplePermissionsState(
+        listOf(
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.ACCESS_COARSE_LOCATION
+        )
+    )
+    val tienePermisoUbicacion = permUbicacion.permissions.any {
+        it.status == com.google.accompanist.permissions.PermissionStatus.Granted
+    }
+
+    LaunchedEffect(tienePermisoUbicacion, solicitarUbicacionPendiente) {
+        if (tienePermisoUbicacion && solicitarUbicacionPendiente) {
+            solicitarUbicacionPendiente = false
+            viewModel.obtenerUbicacionGps()
+        }
+    }
 
     Scaffold(
         topBar = { BarraSuperior(titulo = "Nuevo evento", onVolver = onVolver) }
@@ -88,6 +119,29 @@ fun EventoFormScreen(
                     )
                 }
             )
+            Spacer(Modifier.height(8.dp))
+            OutlinedButton(
+                onClick = {
+                    if (tienePermisoUbicacion) {
+                        viewModel.obtenerUbicacionGps()
+                    } else {
+                        solicitarUbicacionPendiente = true
+                        permUbicacion.launchMultiplePermissionRequest()
+                    }
+                },
+                enabled = !estado.obteniendoUbicacion,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                if (estado.obteniendoUbicacion) {
+                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Obteniendo ubicación GPS…", style = MaterialTheme.typography.labelMedium)
+                } else {
+                    Icon(Icons.Filled.MyLocation, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Usar mi ubicación GPS", style = MaterialTheme.typography.labelMedium)
+                }
+            }
             Spacer(Modifier.height(8.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),

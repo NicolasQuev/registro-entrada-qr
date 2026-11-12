@@ -107,7 +107,7 @@ fun MapaEventoScreen(
                     Text(
                         "Coords: ${String.format(java.util.Locale.US, "%.5f, %.5f", lat, lng)}",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.outline
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
                     Spacer(Modifier.height(8.dp))
@@ -149,8 +149,9 @@ fun MapaEventoScreen(
                         compassEnabled = true
                     )
                 ) {
+                    val markerState = remember(posicionEvento) { MarkerState(position = posicionEvento) }
                     Marker(
-                        state = MarkerState(position = posicionEvento),
+                        state = markerState,
                         title = evento.nombre,
                         snippet = evento.lugar
                     )

@@ -71,7 +71,10 @@ class EventoRepositoryFalso : EventoRepository {
         tipos.value = tipos.value.filterNot { it.eventoId == id }
     }
 
-    override suspend fun sincronizarConApiRest(): Result<Int> = Result.success(eventos.value.size)
+    var resultadoSync: Result<Int>? = null
+
+    override suspend fun sincronizarConApiRest(): Result<Int> =
+        resultadoSync ?: Result.success(eventos.value.size)
     override suspend fun sincronizarEventoEnNube(eventoId: Long): Result<String> = Result.success("REMOTE-$eventoId")
     override suspend fun eliminarEventoEnNube(remoteId: String): Result<Unit> = Result.success(Unit)
 

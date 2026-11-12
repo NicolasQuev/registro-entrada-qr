@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import pe.edu.upn.registroentrada.core.Reloj
 import pe.edu.upn.registroentrada.domain.repository.AjustesRepository
 import pe.edu.upn.registroentrada.domain.repository.EventoRepository
 import pe.edu.upn.registroentrada.domain.usecase.RegistrarAccesoUseCase
@@ -34,11 +35,15 @@ data class EscanerUiState(
 class EscanerViewModel @Inject constructor(
     private val registrarAcceso: RegistrarAccesoUseCase,
     ajustes: AjustesRepository,
-    eventos: EventoRepository
+    eventos: EventoRepository,
+    private val reloj: Reloj
 ) : ViewModel() {
 
     private val _estado = MutableStateFlow(EscanerUiState())
     val estado = _estado.asStateFlow()
+
+    private var ultimoCodigoEscaneado: String? = null
+    private var ultimoEscaneoMs: Long = 0L
 
     init {
         viewModelScope.launch {
@@ -65,9 +70,29 @@ class EscanerViewModel @Inject constructor(
         _estado.update { it.copy(codigoManual = valor.trim(), mensaje = null) }
     }
 
+    /**
+     * Procesa códigos detectados por cámara evitando lecturas duplicadas en ráfaga
+     * mientras se valida un ticket o dentro de la ventana de enfriamiento.
+     */
+    fun procesarCodigoEscaneado(codigo: String) {
+        val limpio = codigo.trim()
+        if (limpio.isBlank()) return
+        val actual = _estado.value
+        if (actual.procesando || actual.validacion != null) return
+
+        val ahoraMs = reloj.ahora().toEpochMilli()
+        if (limpio == ultimoCodigoEscaneado && (ahoraMs - ultimoEscaneoMs) < COOLDOWN_ESCANEO_MS) {
+            return
+        }
+        ultimoCodigoEscaneado = limpio
+        ultimoEscaneoMs = ahoraMs
+        cambiarCodigo(limpio)
+        validar()
+    }
+
     fun validar() {
         val actual = _estado.value
-        if (actual.codigoManual.isBlank()) return
+        if (actual.procesando || actual.codigoManual.isBlank()) return
         if (actual.eventoActivoId <= 0) {
             _estado.update { it.copy(mensaje = "Selecciona un evento activo en Inicio") }
             return
@@ -92,5 +117,9 @@ class EscanerViewModel @Inject constructor(
 
     fun limpiar() {
         _estado.update { it.copy(validacion = null, codigoManual = "") }
+    }
+
+    private companion object {
+        const val COOLDOWN_ESCANEO_MS = 2_000L
     }
 }
